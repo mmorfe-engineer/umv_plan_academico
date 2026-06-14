@@ -131,8 +131,8 @@ def actividad_en_periodo_semananal(ob):
     if fecha_inicio:
         if "fecha_fin" in ob:
             fecha_fin = datetime.strptime(ob["fecha_fin"], "%Y-%m-%d").date()
-            # Verificar si el rango se superpone con el período de 2 semanas
-            if fecha_fin >= lunes_esta_semana and fecha_inicio <= domingo_proxima_semana:
+            # Verificar si la actividad TERMINA dentro de las 2 semanas
+            if lunes_esta_semana <= fecha_fin <= domingo_proxima_semana:
                 return True
         elif lunes_esta_semana <= fecha_inicio <= domingo_proxima_semana:
             return True
