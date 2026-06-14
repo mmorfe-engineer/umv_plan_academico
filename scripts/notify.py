@@ -9,11 +9,19 @@ Uso: python scripts/notify.py [modo]
 import json
 import os
 import sys
+import subprocess
 import requests
 import smtplib
 from datetime import date, datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+
+# DEBUG: Mostrar commit actual
+try:
+    commit_hash = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=".").decode().strip()
+    print(f"🔥 GIT COMMIT: {commit_hash}")
+except Exception as e:
+    print(f"⚠️  No se pudo obtener commit: {e}")
 
 # =============================================================================
 # Configuracion y Validacion
