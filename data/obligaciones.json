@@ -21,8 +21,7 @@
       "estado": "en_progreso",
       "alerta": true,
       "recordatorios_dias": [7, 3, 1, 0],
-      "revision_semanal_lunes": true,
-      "nota": "Verificar todos los lunes si hay examen; no tiene fechas pautadas"
+      "revision_semanal_lunes": true
     },
     {
       "materia": "Principio de Electricidad",
@@ -106,9 +105,7 @@
       "fecha_fin": "2026-05-30",
       "estado": "en_progreso",
       "alerta": true,
-      "recordatorios_dias": [7, 3, 1, 0],
-      "revision_semanal_lunes": true,
-      "nota": "Verificar todos los lunes si hay examen; no tiene fechas pautadas"
+      "recordatorios_dias": [7, 3, 1, 0]
     },
     {
       "materia": "Backend (Ingeniería de la Programación)",
