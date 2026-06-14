@@ -1,0 +1,28 @@
+name: Weekly Monday Review
+
+on:
+  schedule:
+    - cron: '0 13 * * 1'   # Todos los lunes 9:00 AM Caracas = 13:00 UTC
+  workflow_dispatch:
+
+jobs:
+  monday-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Monday revision alerts
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          GMAIL_USER:        ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASS:    ${{ secrets.GMAIL_APP_PASS }}
+        run: python scripts/notify.py lunes
