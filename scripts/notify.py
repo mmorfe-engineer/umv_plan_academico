@@ -301,6 +301,12 @@ def run(modo="normal"):
     emails = meta["email_to"]
     pages_url = meta["github_pages_url"]
     hoy = date.today()
+    
+    # DEBUG: Mostrar fecha del servidor y rango
+    if modo == "lunes":
+        lunes, domingo = get_rango_semananal()
+        print(f"🔍 DEBUG - Fecha servidor: {hoy}")
+        print(f"🔍 DEBUG - Rango semanal: {lunes} → {domingo}")
 
     if not emails:
         print("⚠️  No hay destinatarios de email configurados")
