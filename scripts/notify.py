@@ -322,8 +322,11 @@ def run(modo="normal"):
         print("⚠️  No hay canal de Slack configurado")
 
     for ob in data["obligaciones"]:
-        # Revision semanal lunes - Enviar TODAS las actividades de las próximas 2 semanas
+        # Revision semanal lunes - Enviar actividades de las proximas 2 semanas
         if modo == "lunes":
+            # Verificar si tiene fechas definidas
+            tiene_fecha = "fecha" in ob or "fecha_inicio" in ob or "fecha_fin" in ob
+            
             if actividad_en_periodo_semananal(ob):
                 # Calcular dias restantes si tiene fecha limite
                 dias_restantes = None
@@ -333,8 +336,8 @@ def run(modo="normal"):
                 
                 send_slack(ob, dias_restantes, canal, pages_url, modo="lunes")
                 send_email(ob, dias_restantes, emails, pages_url, modo="lunes")
-            # También enviar actividades con revision_semanal_lunes para retrocompatibilidad
-            elif ob.get("revision_semanal_lunes"):
+            # Solo enviar actividades SIN fechas pero con revision_semanal_lunes
+            elif not tiene_fecha and ob.get("revision_semanal_lunes"):
                 send_slack(ob, None, canal, pages_url, modo="lunes")
                 send_email(ob, None, emails, pages_url, modo="lunes")
             continue
