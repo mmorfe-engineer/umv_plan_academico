@@ -1,118 +1,189 @@
-# Academic Tracker - UVM Plan Academico
+# 🎓 Academic Tracker UVM
 
-Sistema completo de seguimiento y automatizacion de obligaciones academicas universitarias.
+[![GitHub stars](https://img.shields.io/github/stars/mmorfe-engineer/umv_plan_academico?style=social)](https://github.com/mmorfe-engineer/umv_plan_academico/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/mmorfe-engineer/umv_plan_academico?style=social)](https://github.com/mmorfe-engineer/umv_plan_academico/network)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![GitHub Actions](https://github.com/mmorfe-engineer/umv_plan_academico/actions/workflows/weekly_monday.yml/badge.svg)](https://github.com/mmorfe-engineer/umv_plan_academico/actions)
+[![Last Commit](https://img.shields.io/github/last-commit/mmorfe-engineer/umv_plan_academico)](https://github.com/mmorfe-engineer/umv_plan_academico/commits/main)
 
-## Caracteristicas
+**Sistema de seguimiento académico para gestionar actividades, fechas de entrega y recordatorios automáticos para estudiantes de la Universidad Valle del Momboy (UVM).**
 
-- **Notificaciones automaticas** via Slack y Gmail
-- **Dashboard visual** publicado en GitHub Pages
-- **Gestion de actividades** con alertas programadas
-- **Sincronizacion automatica** con cron jobs diarios y semanales
+---
 
-## Estructura del Proyecto
+## 📋 Tabla de Contenidos
+- [✨ Características](#-características)
+- [🚀 Instalación](#-instalación)
+- [🎯 Uso](#-uso)
+- [📊 Workflows Automatizados](#-workflows-automatizados)
+- [🗂️ Estructura del Proyecto](#-estructura-del-proyecto)
+- [🛠️ Tecnologías](#-tecnologías)
+- [📝 Contribuir](#-contribuir)
+- [🤝 Código de Conducta](#-código-de-conducta)
+- [📄 Licencia](#-licencia)
+- [🙏 Créditos](#-créditos)
+
+---
+
+## ✨ Características
+
+- ✅ **Notificaciones automáticas** por Slack y Email
+- ✅ **Recordatorios semanales** de actividades académicas (todos los lunes)
+- ✅ **Filtrado inteligente** por fechas (2 semanas de anticipación)
+- ✅ **Dashboard HTML** con visualización de todas las obligaciones
+- ✅ **Integración con GitHub Actions** para automatización completa
+- ✅ **Soporte para múltiples materias** y tipos de actividades
+- ✅ **Configuración flexible** de fechas y recordatorios
+
+---
+
+## 🚀 Instalación
+
+### 📋 Requisitos Previos
+
+- **Python** 3.11 o superior
+- **pip** (gestor de paquetes de Python)
+- Cuenta de **GitHub** (para clonar el repositorio)
+- **Webhook de Slack** (opcional, para notificaciones en Slack)
+- Cuenta **Gmail** con App Password (opcional, para notificaciones por email)
+
+### 💻 Pasos de Instalación
+
+1. **Clonar el repositorio:**
+   ```bash
+   git clone https://github.com/mmorfe-engineer/umv_plan_academico.git
+   cd umv_plan_academico
+   ```
+
+2. **Instalar las dependencias:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Configurar variables de entorno:**
+   Crea un archivo `.env` en el directorio raíz o configura las siguientes variables en tu entorno:
+   ```bash
+   # Para notificaciones por Slack
+   export SLACK_WEBHOOK_URL="tu_webhook_url"
+   
+   # Para notificaciones por email
+   export GMAIL_USER="tu_email@gmail.com"
+   export GMAIL_APP_PASS="tu_app_password"
+   ```
+
+4. **Personalizar tus actividades:**
+   Edita el archivo `data/obligaciones.json` para añadir tus materias, actividades y fechas:
+   ```json
+   {
+     "materia": "Nombre de la materia",
+     "titulo": "Nombre de la actividad",
+     "tipo": "examen|trabajo en grupo|programar|etc",
+     "fecha": "2026-06-19",  // o fecha_inicio y fecha_fin
+     "estado": "pendiente|en_progreso|completado"
+   }
+   ```
+
+---
+
+## 🎯 Uso
+
+### 📱 Ejecución Local
+
+Para probar el sistema localmente:
+
+```bash
+# Notificaciones diarias (modo normal)
+python scripts/notify.py normal
+
+# Revisión semanal de lunes
+python scripts/notify.py lunes
+```
+
+### 🔄 GitHub Actions (Automatización)
+
+El repositorio incluye **3 workflows automatizados** que se ejecutan en GitHub Actions:
+
+| Workflow | Descripción | Frecuencia | Estado |
+|----------|-------------|------------|--------|
+| `daily_check.yml` | Revisión diaria de actividades que vencen pronto | Diario a las 9:00 AM (UTC-4) | [![Daily Check](https://github.com/mmorfe-engineer/umv_plan_academico/actions/workflows/daily_check.yml/badge.svg)](https://github.com/mmorfe-engineer/umv_plan_academico/actions/workflows/daily_check.yml) |
+| `weekly_monday.yml` | Revisión semanal de todas las actividades | Todos los lunes a las 9:00 AM | [![Weekly Monday](https://github.com/mmorfe-engineer/umv_plan_academico/actions/workflows/weekly_monday.yml/badge.svg)](https://github.com/mmorfe-engineer/umv_plan_academico/actions/workflows/weekly_monday.yml) |
+| `deploy_dashboard.yml` | Despliegue del dashboard HTML | Manual | [![Deploy Dashboard](https://github.com/mmorfe-engineer/umv_plan_academico/actions/workflows/deploy_dashboard.yml/badge.svg)](https://github.com/mmorfe-engineer/umv_plan_academico/actions/workflows/deploy_dashboard.yml) |
+
+---
+
+## 🗂️ Estructura del Proyecto
 
 ```
 umv_plan_academico/
-├── data/
-│   └── obligaciones.json          # Fuente unica de verdad
-├── scripts/
-│   ├── notify.py                  # Logica de alertas Slack + Gmail
-│   └── generate_dashboard.py      # Genera docs/index.html
 ├── .github/
 │   └── workflows/
-│       ├── daily_check.yml        # Check diario a las 9:00 AM Caracas
-│       ├── weekly_monday.yml      # Revision semanal los lunes
-│       └── deploy_dashboard.yml   # Deploy automatico a GitHub Pages
-├── docs/
-│   └── index.html                 # Tablero visual
-├── requirements.txt
-└── README.md
+│       ├── daily_check.yml          # Notificaciones diarias
+│       ├── weekly_monday.yml         # Revisión semanal
+│       └── deploy_dashboard.yml     # Despliegue del dashboard
+├── data/
+│   └── obligaciones.json           # Datos de actividades académicas
+├── scripts/
+│   └── notify.py                   # Script principal de notificaciones
+├── docs/                          # Documentación adicional
+├── README.md                      # Este archivo
+├── LICENSE                       # Licencia MIT
+├── CONTRIBUTING.md               # Guía de contribución
+├── CODE_OF_CONDUCT.md            # Código de conducta
+├── requirements.txt               # Dependencias de Python
+└── INFORME_AVANCE_MANTENIMIENTO.txt  # Informe de desarrollo
 ```
 
-## Configuracion
+---
 
-### 1. Crear el repositorio en GitHub
+## 🛠️ Tecnologías Utilizadas
 
-1. Crear repositorio: `mmorfe-engineer/umv_plan_academico`
-2. Activar GitHub Pages:
-   - Settings → Pages
-   - Source: `Deploy from a branch`
-   - Branch: `main` | Folder: `/docs`
+| Tecnología | Versión | Uso |
+|------------|---------|-----|
+| **Python** | 3.11+ | Lenguaje principal |
+| **GitHub Actions** | - | Automatización de workflows |
+| **Slack API** | - | Notificaciones por Slack |
+| **SMTP (Gmail)** | - | Notificaciones por email |
+| **JSON** | - | Formato de datos |
+| **GitHub Pages** | - | Hosting del dashboard |
 
-### 2. Configurar Secrets en GitHub
+---
 
-Ir a: **Settings → Secrets and variables → Actions → New repository secret**
+## 📝 Contribuir
 
-| Secret Name | Descripcion |
-|---|---|
-| `SLACK_WEBHOOK_URL` | URL del Incoming Webhook de Slack |
-| `GMAIL_USER` | Cuenta Gmail remitente |
-| `GMAIL_APP_PASS` | App Password de Gmail (16 caracteres) |
+¡Las contribuciones son bienvenidas! Por favor lee nuestro [CONTRIBUTING.md](CONTRIBUTING.md) para más detalles sobre cómo contribuir al proyecto.
 
-#### Como obtener SLACK_WEBHOOK_URL:
-1. Ir a https://api.slack.com/apps → "Create New App" → "From scratch"
-2. Nombre: `AcademicTracker` | Workspace: el personal
-3. En "Add features": activar **Incoming Webhooks**
-4. Click en "Add New Webhook to Workspace"
-5. Seleccionar el canal `#plan-academico`
-6. Copiar la URL generada → pegarla en el secret
+### 🚀 Pasos Básicos
 
-#### Como obtener GMAIL_APP_PASS:
-1. Ir a https://myaccount.google.com/security
-2. Activar **Verificacion en 2 pasos** si no esta activa
-3. Buscar **"Contraseñas de aplicaciones"**
-4. App: "Otra (nombre personalizado)" → escribir `AcademicTracker`
-5. Copiar los 16 caracteres generados → pegarlos en secret `GMAIL_APP_PASS`
-6. En `GMAIL_USER` poner la cuenta `@gmail.com` que genero el App Password
+1. **Haz un fork** del proyecto
+2. **Crea una branch** para tu feature (`git checkout -b feature/nueva-caracteristica`)
+3. **Haz commit** de tus cambios (`git commit -m 'feat: añade nueva característica'`)
+4. **Empuja** a tu branch (`git push origin feature/nueva-caracteristica`)
+5. **Abre un Pull Request**
 
-### 3. Clonar el repositorio y subir los archivos
+---
 
-```bash
-git clone https://github.com/mmorfe-engineer/umv_plan_academico.git
-cd umv_plan_academico
-# Copiar todos los archivos creados
- git add .
-git commit -m "Initial commit - Academic Tracker setup"
-git push origin main
-```
+## 🤝 Código de Conducta
 
-## Uso
+Todos los contribuyentes deben seguir nuestro [Código de Conducta](CODE_OF_CONDUCT.md). Esperamos que todos los participantes mantengan un ambiente respetuoso y colaborativo.
 
-### Modificar actividades
+---
 
-Editar el archivo `data/obligaciones.json` y hacer commit/push:
-- Cambiar `estado` entre: `pendiente`, `en_progreso`, `entregado`
-- Configurar `alerta: true` para recibir notificaciones
-- Configurar `recordatorios_dias: [7, 3, 1, 0]` para dias de alerta
-- Configurar `revision_semanal_lunes: true` para revision semanal
+## 📄 Licencia
 
-### Workflows disponibles
+Este proyecto está bajo la **Licencia MIT** - mira el archivo [LICENSE](LICENSE) para más detalles.
 
-- **Daily Academic Check**: Ejecuta todos los dias a las 9:00 AM Caracas (13:00 UTC)
-  - Envia notificaciones por Slack y Gmail segun los recordatorios configurados
-  
-- **Weekly Monday Review**: Ejecuta todos los lunes a las 9:00 AM Caracas
-  - Envia recordatorios para actividades con `revision_semanal_lunes: true`
-  
-- **Deploy Dashboard**: Se ejecuta automaticamente al hacer push a `main`
-  - Regenera el dashboard HTML y lo despliega en GitHub Pages
+---
 
-### Ejecutar manualmente
+## 🙏 Créditos
 
-Para ejecutar los workflows manualmente:
-1. Ir a GitHub → Actions
-2. Seleccionar el workflow deseado
-3. Click en "Run workflow" → "Run workflow"
+**Desarrollado por:**
+- [Martin Morfe Flores](https://github.com/mmorfe-engineer) - Autor principal
+- Martin Alejandro Morfe Carballo - Contribuidor
 
-## Dashboard Publico
+**Universidad:** Universidad Valle del Momboy (UVM)
 
-El dashboard estara disponible en: https://mmorfe-engineer.github.io/umv_plan_academico
+**Año:** 2026
 
-## Requerimientos
+---
 
-- Python 3.11+
-- Librerias: `requests`, `pytz` (instaladas via `requirements.txt`)
-
-## Licencia
-
-Proyecto academico personal - Martin Morfe Flores
+*© 2026 Martin Morfe Flores & Martin Alejandro Morfe Carballo*
