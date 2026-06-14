@@ -1,28 +1,68 @@
+"""Script de notificaciones para Academic Tracker.
+
+Envia alertas via Slack Webhook y Gmail SMTP segun las obligaciones academicas.
+Uso: python scripts/notify.py [modo]
+  modo: "normal" (default) - alertas por dias restantes
+        "lunes" - revisiones semanales de lunes
+"""
+
 import json
 import os
+import sys
 import requests
 import smtplib
 from datetime import date, datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-# -- Secrets desde variables de entorno (GitHub Actions secrets) --
-SLACK_WEBHOOK_URL = os.environ["SLACK_WEBHOOK_URL"]
-GMAIL_USER        = os.environ["GMAIL_USER"]        # cuenta @gmail.com remitente
-GMAIL_APP_PASS    = os.environ["GMAIL_APP_PASS"]    # App Password de Gmail
-PAGES_URL         = "https://mmorfe-engineer.github.io/umv_plan_academico"
+# =============================================================================
+# Configuracion y Validacion
+# =============================================================================
 
-# -- Emojis por tipo --
+def validate_environment():
+    """Valida que todas las variables de entorno requeridas esten configuradas."""
+    required_vars = {
+        "SLACK_WEBHOOK_URL": "URL del Incoming Webhook de Slack",
+        "GMAIL_USER": "Cuenta Gmail remitente (ej: tuemail@gmail.com)",
+        "GMAIL_APP_PASS": "App Password de Gmail de 16 caracteres",
+    }
+    
+    missing = []
+    for var_name, description in required_vars.items():
+        if not os.environ.get(var_name):
+            missing.append(f"{var_name} ({description})")
+    
+    if missing:
+        raise EnvironmentError(
+            "Faltan variables de entorno requeridas:\n" + 
+            "\n".join(f"  - {m}" for m in missing) + 
+            "\n\nConfiguralas en GitHub Secrets o en tu entorno local."
+        )
+
+# Validar antes de continuar
+validate_environment()
+
+# Obtener configuracion
+SLACK_WEBHOOK_URL = os.environ["SLACK_WEBHOOK_URL"]
+GMAIL_USER = os.environ["GMAIL_USER"]
+GMAIL_APP_PASS = os.environ["GMAIL_APP_PASS"]
+
+# =============================================================================
+# Constantes
+# =============================================================================
+
+# Emojis por tipo de actividad
 EMOJI_TIPO = {
-    "grupo c":        "📝",
-    "examen":         "📝",
-    "anteproyecto":   "📐",
-    "proyecto":       "🚀",
-    "programar":      "💻",
+    "grupo c": "📝",
+    "examen": "📝",
+    "anteproyecto": "📐",
+    "proyecto": "🚀",
+    "programar": "💻",
     "trabajo en grupo": "👥",
-    "flyer":          "🎨",
+    "flyer": "🎨",
 }
 
+# Emojis por nivel de urgencia
 EMOJI_URGENCIA = {
     7: "📅",
     3: "⚠️",
@@ -30,29 +70,55 @@ EMOJI_URGENCIA = {
     0: "🚨",
 }
 
+# =============================================================================
+# Funciones de Utilidad
+# =============================================================================
+
 def get_fecha_display(ob):
+    """Obtiene la representacion de fecha para display."""
     if "fecha" in ob:
         return ob["fecha"]
-    return f'{ob.get("fecha_inicio","?")} → {ob.get("fecha_fin","?")}'
+    return f'{ob.get("fecha_inicio", "?")} → {ob.get("fecha_fin", "?")}'
+
 
 def get_fecha_limite(ob):
+    """Obtiene la fecha limite como objeto date."""
     if "fecha" in ob:
         return datetime.strptime(ob["fecha"], "%Y-%m-%d").date()
     if "fecha_fin" in ob:
         return datetime.strptime(ob["fecha_fin"], "%Y-%m-%d").date()
     return None
 
+
+def load_data():
+    """Carga los datos de obligaciones desde el JSON."""
+    try:
+        with open("data/obligaciones.json", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        raise FileNotFoundError(
+            "Archivo data/obligaciones.json no encontrado. "
+            "Asegurate de estar en el directorio correcto."
+        )
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Error al parsear JSON: {e}")
+
+# =============================================================================
+# Funciones de Notificacion
+# =============================================================================
+
 def send_slack(ob, dias, canal, pages_url, modo="normal"):
-    emoji_u  = EMOJI_URGENCIA.get(dias, "📌") if modo == "normal" else "🔁"
-    emoji_t  = EMOJI_TIPO.get(ob.get("tipo","").lower(), "📌")
-    materia  = ob["materia"]
-    titulo   = ob["titulo"]
-    fecha_d  = get_fecha_display(ob)
-    nota     = ob.get("nota","")
+    """Envía notificacion a Slack."""
+    emoji_u = EMOJI_URGENCIA.get(dias, "📌") if modo == "normal" else "🔁"
+    emoji_t = EMOJI_TIPO.get(ob.get("tipo", "").lower(), "📌")
+    materia = ob["materia"]
+    titulo = ob["titulo"]
+    fecha_d = get_fecha_display(ob)
+    nota = ob.get("nota", "")
 
     if modo == "lunes":
         texto = (
-            f"{emoji_u} *REVISION SEMANAL — LUNES*\n"
+            f"{emoji_u} *REVISIÓN SEMANAL — LUNES*\n"
             f"{emoji_t} *{materia}* · {titulo}\n"
             f"📋 {nota}\n"
             f"🔗 Tablero: {pages_url}"
@@ -75,21 +141,29 @@ def send_slack(ob, dias, canal, pages_url, modo="normal"):
         )
 
     payload = {"text": texto, "channel": canal}
-    r = requests.post(SLACK_WEBHOOK_URL, json=payload)
-    print(f"Slack [{r.status_code}] → {materia} / {titulo}")
+    try:
+        r = requests.post(SLACK_WEBHOOK_URL, json=payload, timeout=10)
+        r.raise_for_status()
+        print(f"✅ Slack [{r.status_code}] → {materia} / {titulo}")
+        return True
+    except requests.RequestException as e:
+        print(f"❌ Error Slack: {e}")
+        return False
+
 
 def send_email(ob, dias, email_list, pages_url, modo="normal"):
+    """Envía notificacion por email."""
     materia = ob["materia"]
-    titulo  = ob["titulo"]
+    titulo = ob["titulo"]
     fecha_d = get_fecha_display(ob)
 
     if modo == "lunes":
         subject = f"🔁 Revisión semanal — {materia}"
-        body    = (
+        body = (
             f"Revisión programada de lunes.\n\n"
             f"Materia: {materia}\n"
             f"Actividad: {titulo}\n"
-            f"Nota: {ob.get('nota','')}\n\n"
+            f"Nota: {ob.get('nota', '')}\n\n"
             f"Ver tablero completo: {pages_url}"
         )
     else:
@@ -106,42 +180,59 @@ def send_email(ob, dias, email_list, pages_url, modo="normal"):
             f"Recordatorio académico.\n\n"
             f"Materia:    {materia}\n"
             f"Actividad:  {titulo}\n"
-            f"Tipo:       {ob.get('tipo','')}\n"
+            f"Tipo:       {ob.get('tipo', '')}\n"
             f"Fecha:      {fecha_d}\n\n"
             f"Ver tablero completo: {pages_url}"
         )
 
-    msg = MIMEMultipart()
-    msg["From"]    = GMAIL_USER
-    msg["Subject"] = subject
-    msg.attach(MIMEText(body, "plain"))
+    # Enviar email individual a cada destinatario
+    emails_sent = 0
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=15) as server:
+            server.login(GMAIL_USER, GMAIL_APP_PASS)
+            
+            for dest in email_list:
+                msg = MIMEMultipart()
+                msg["From"] = GMAIL_USER
+                msg["To"] = dest
+                msg["Subject"] = subject
+                msg.attach(MIMEText(body, "plain"))
+                
+                server.sendmail(GMAIL_USER, dest, msg.as_string())
+                print(f"✅ Email → {dest} [{materia}]")
+                emails_sent += 1
+    except smtplib.SMTPException as e:
+        print(f"❌ Error Gmail: {e}")
+    
+    return emails_sent > 0
 
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-        server.login(GMAIL_USER, GMAIL_APP_PASS)
-        for dest in email_list:
-            msg["To"] = dest
-            server.sendmail(GMAIL_USER, dest, msg.as_string())
-            print(f"Email → {dest} [{materia}]")
+
+# =============================================================================
+# Logica Principal
+# =============================================================================
 
 def run(modo="normal"):
-    with open("data/obligaciones.json", encoding="utf-8") as f:
-        data = json.load(f)
+    """Ejecuta el proceso de notificaciones."""
+    data = load_data()
+    meta = data["meta"]
+    canal = meta["canal_slack"]
+    emails = meta["email_to"]
+    pages_url = meta["github_pages_url"]
+    hoy = date.today()
 
-    meta       = data["meta"]
-    canal      = meta["canal_slack"]
-    emails     = meta["email_to"]
-    pages_url  = meta["github_pages_url"]
-    hoy        = date.today()
+    if not emails:
+        print("⚠️  No hay destinatarios de email configurados")
+    if not canal:
+        print("⚠️  No hay canal de Slack configurado")
 
     for ob in data["obligaciones"]:
-
-        # -- Revisión semanal lunes --
+        # Revision semanal lunes
         if modo == "lunes" and ob.get("revision_semanal_lunes"):
             send_slack(ob, None, canal, pages_url, modo="lunes")
             send_email(ob, None, emails, pages_url, modo="lunes")
             continue
 
-        # -- Alerta por días restantes --
+        # Alerta por dias restantes
         if modo == "normal" and ob.get("alerta") and ob.get("recordatorios_dias"):
             fecha_limite = get_fecha_limite(ob)
             if fecha_limite:
@@ -150,7 +241,13 @@ def run(modo="normal"):
                     send_slack(ob, dias, canal, pages_url)
                     send_email(ob, dias, emails, pages_url)
 
+
 if __name__ == "__main__":
-    import sys
     modo = sys.argv[1] if len(sys.argv) > 1 else "normal"
-    run(modo)
+    print(f"Iniciando notificaciones en modo: {modo}")
+    try:
+        run(modo)
+        print("Notificaciones enviadas correctamente")
+    except Exception as e:
+        print(f"Error: {e}")
+        sys.exit(1)

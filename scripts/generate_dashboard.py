@@ -1,72 +1,58 @@
 #!/usr/bin/env python3
-"""Genera el dashboard HTML para el Academic Tracker."""
+"""Genera el dashboard HTML para el Academic Tracker.
+
+Lee data/obligaciones.json y genera docs/index.html con:
+- Diseño Kanban por estados (Pendiente, En Progreso, Entregado)
+- Tarjetas con emojis por tipo de actividad
+- Badges de urgencia por dias restantes
+- Barra de progreso general
+- Diseño responsivo
+- Paleta: fondo oscuro (#1a1a2e), acento teal (#01696f)
+"""
 
 import json
 from datetime import datetime
 import pytz
 
+# =============================================================================
 # Cargar datos
-with open("data/obligaciones.json", encoding="utf-8") as f:
-    data = json.load(f)
+# =============================================================================
 
+def load_data():
+    """Carga y valida los datos de obligaciones."""
+    try:
+        with open("data/obligaciones.json", encoding="utf-8") as f:
+            data = json.load(f)
+        
+        # Validar estructura minima
+        if "meta" not in data or "obligaciones" not in data:
+            raise ValueError("Estructura JSON invalida: faltan 'meta' o 'obligaciones'")
+        
+        return data
+    except FileNotFoundError:
+        raise FileNotFoundError(
+            "Archivo data/obligaciones.json no encontrado. "
+            "Ejecutar desde el directorio raiz del proyecto."
+        )
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Error al parsear JSON: {e}")
+
+
+data = load_data()
 meta = data["meta"]
 obligaciones = data["obligaciones"]
 
+# =============================================================================
 # Configuracion timezone
+# =============================================================================
+
 tz = pytz.timezone(meta["timezone"])
 now = datetime.now(tz)
 formatted_now = now.strftime("%Y-%m-%d %H:%M:%S %Z")
 
-# Funciones utilitarias
-def get_fecha_limite(ob):
-    """Obtiene la fecha limite de una obligacion."""
-    if "fecha" in ob:
-        return datetime.strptime(ob["fecha"], "%Y-%m-%d").date()
-    if "fecha_fin" in ob:
-        return datetime.strptime(ob["fecha_fin"], "%Y-%m-%d").date()
-    return None
-
-def get_fecha_display(ob):
-    """Obtiene el texto de fecha para mostrar."""
-    if "fecha" in ob:
-        return ob["fecha"]
-    return f'{ob.get("fecha_inicio", "?")} -> {ob.get("fecha_fin", "?")}'
-
-def get_dias_restantes(ob):
-    """Calcula dias restantes."""
-    fecha_limite = get_fecha_limite(ob)
-    if fecha_limite:
-        hoy = datetime.now(tz).date()
-        return (fecha_limite - hoy).days
-    return None
-
-def get_urgencia_class(dias, estado):
-    """Determina la clase de urgencia para el badge."""
-    if estado == "entregado":
-        return "badge-entregado"
-    if dias is not None:
-        if dias < 0:
-            return "badge-vencido"
-        elif dias <= 3:
-            return "badge-urgente"
-        elif dias <= 7:
-            return "badge-proximo"
-    return "badge-normal"
-
-def get_urgencia_text(dias, estado):
-    """Texto para mostrar en el badge de urgencia."""
-    if estado == "entregado":
-        return "Entregado"
-    if dias is not None:
-        if dias < 0:
-            return "Vencido"
-        elif dias == 0:
-            return "Vence hoy"
-        elif dias == 1:
-            return "Vence manana"
-        elif dias <= 7:
-            return f"Vence en {dias} dias"
-    return ""
+# =============================================================================
+# Constantes
+# =============================================================================
 
 # Emojis por tipo
 EMOJI_TIPO = {
@@ -86,21 +72,95 @@ ESTADO_EMOJI = {
     "entregado": "✅",
 }
 
+# =============================================================================
+# Funciones utilitarias
+# =============================================================================
+
+def get_fecha_limite(ob):
+    """Obtiene la fecha limite como objeto date."""
+    if "fecha" in ob:
+        return datetime.strptime(ob["fecha"], "%Y-%m-%d").date()
+    if "fecha_fin" in ob:
+        return datetime.strptime(ob["fecha_fin"], "%Y-%m-%d").date()
+    return None
+
+
+def get_fecha_display(ob):
+    """Obtiene el texto de fecha para mostrar."""
+    if "fecha" in ob:
+        return ob["fecha"]
+    inicio = ob.get("fecha_inicio", "?")
+    fin = ob.get("fecha_fin", "?")
+    return f"{inicio} → {fin}"
+
+
+def get_dias_restantes(ob):
+    """Calcula dias restantes."""
+    fecha_limite = get_fecha_limite(ob)
+    if fecha_limite:
+        hoy = datetime.now(tz).date()
+        return (fecha_limite - hoy).days
+    return None
+
+
+def get_urgencia_class(dias, estado):
+    """Determina la clase CSS de urgencia."""
+    if estado == "entregado":
+        return "badge-entregado"
+    if dias is not None:
+        if dias < 0:
+            return "badge-vencido"
+        elif dias <= 3:
+            return "badge-urgente"
+        elif dias <= 7:
+            return "badge-proximo"
+    return "badge-normal"
+
+
+def get_urgencia_text(dias, estado):
+    """Texto para mostrar en el badge de urgencia."""
+    if estado == "entregado":
+        return "Entregado"
+    if dias is not None:
+        if dias < 0:
+            return "Vencido"
+        elif dias == 0:
+            return "Vence hoy"
+        elif dias == 1:
+            return "Vence manana"
+        elif dias <= 7:
+            return f"Vence en {dias} dias"
+    return ""
+
+
+# =============================================================================
 # Agrupar obligaciones por estado
-obligaciones_por_estado = {"pendiente": [], "en_progreso": [], "entregado": []}
+# =============================================================================
+
+VALID_ESTADOS = ["pendiente", "en_progreso", "entregado"]
+obligaciones_por_estado = {estado: [] for estado in VALID_ESTADOS}
+
 for ob in obligaciones:
     estado = ob.get("estado", "pendiente")
-    if estado not in obligaciones_por_estado:
+    if estado not in VALID_ESTADOS:
         estado = "pendiente"
+        print(f"⚠️  Estado invalido '{ob.get('estado')}' en {ob.get('materia')}, usando 'pendiente'")
     obligaciones_por_estado[estado].append(ob)
 
+# =============================================================================
 # Calcular progreso
+# =============================================================================
+
 total_obligaciones = len(obligaciones)
 obligaciones_entregadas = len(obligaciones_por_estado["entregado"])
 porcentaje_completado = (obligaciones_entregadas / total_obligaciones * 100) if total_obligaciones > 0 else 0
 
-# Funcion para generar card HTML
-def generate_card(ob):
+# =============================================================================
+# Funcion para generar tarjeta HTML
+# =============================================================================
+
+def generate_card_html(ob):
+    """Genera el HTML de una tarjeta de obligacion."""
     dias = get_dias_restantes(ob)
     urgencia_class = get_urgencia_class(dias, ob.get("estado", "pendiente"))
     urgencia_text = get_urgencia_text(dias, ob.get("estado", "pendiente"))
@@ -108,43 +168,59 @@ def generate_card(ob):
     tiene_lunes = ob.get("revision_semanal_lunes", False)
     estado = ob.get("estado", "pendiente")
     estado_emoji = ESTADO_EMOJI.get(estado, "⏳")
+    materia = ob["materia"]
+    actividad_id = ob["actividad_id"]
+    titulo = ob["titulo"]
+    seccion = ob.get("seccion", "")
+    tipo = ob.get("tipo", "")
+    fecha_display = get_fecha_display(ob)
+    nota = ob.get("nota", "")
+
+    lines = []
+    lines.append('<div class="card">')
+    lines.append('  <div class="card-header">')
+    lines.append('    <span class="card-title">')
     
-    card_lines = []
-    card_lines.append('<div class="card">')
-    card_lines.append('    <div class="card-header">')
-    card_lines.append('        <span class="card-title">')
     if tiene_lunes:
-        card_lines.append('            <span class="lunes-icon">🔁</span> ')
-    card_lines.append(f'            {ob["materia"]}')
-    card_lines.append('        </span>')
-    card_lines.append(f'        <span class="card-id">{ob["actividad_id"]}</span>')
-    card_lines.append('    </div>')
-    card_lines.append('    <div class="card-body">')
-    card_lines.append(f'        <span class="card-type">{emoji_tipo} {ob["titulo"]}</span>')
-    card_lines.append('    </div>')
-    card_lines.append(f'    <div class="card-section">{ob.get("seccion", "")}</div>')
-    card_lines.append(f'    <div class="card-date">📅 {get_fecha_display(ob)}</div>')
-    card_lines.append(f'    <div class="card-type">Tipo: {ob.get("tipo", "")}</div>')
+        lines.append('      <span class="lunes-icon">🔁</span> ')
+    
+    lines.append(f'      {materia}')
+    lines.append('    </span>')
+    lines.append(f'    <span class="card-id">{actividad_id}</span>')
+    lines.append('  </div>')
+    lines.append('  <div class="card-body">')
+    lines.append(f'    <span class="card-type">{emoji_tipo} {titulo}</span>')
+    lines.append('  </div>')
+    
+    if seccion:
+        lines.append(f'  <div class="card-section">{seccion}</div>')
+    
+    lines.append(f'  <div class="card-date">📅 {fecha_display}</div>')
+    lines.append(f'  <div class="card-type">Tipo: {tipo}</div>')
     
     if urgencia_text:
-        card_lines.append(f'    <div><span class="badge {urgencia_class}">{urgencia_text}</span></div>')
+        lines.append(f'  <div><span class="badge {urgencia_class}">{urgencia_text}</span></div>')
     
-    if ob.get("nota"):
-        card_lines.append(f'    <div class="card-nota">📝 {ob["nota"]}</div>')
+    if nota:
+        lines.append(f'  <div class="card-nota">📝 {nota}</div>')
     
     # Badge de estado
     if estado == "entregado":
-        card_lines.append(f'    <span class="badge badge-estado badge-entregado-badge">{estado_emoji} Entregado</span>')
+        lines.append(f'  <span class="badge badge-estado badge-entregado-badge">{estado_emoji} Entregado</span>')
     elif estado == "en_progreso":
-        card_lines.append(f'    <span class="badge badge-estado badge-en_progreso">{estado_emoji} En Progreso</span>')
+        lines.append(f'  <span class="badge badge-estado badge-en_progreso">{estado_emoji} En Progreso</span>')
     else:
-        card_lines.append(f'    <span class="badge badge-estado badge-pendiente">{estado_emoji} Pendiente</span>')
+        lines.append(f'  <span class="badge badge-estado badge-pendiente">{estado_emoji} Pendiente</span>')
     
-    card_lines.append('</div>')
-    return '\n'.join(card_lines)
+    lines.append('</div>')
+    return '\n'.join(lines)
 
-# CSS estilos
-css = """
+
+# =============================================================================
+# CSS Estilos
+# =============================================================================
+
+CSS = """
 :root {
     --bg-dark: #1a1a2e;
     --bg-darker: #16213e;
@@ -154,9 +230,6 @@ css = """
     --accent-light: #01878c;
     --text-primary: #1a1a2e;
     --text-secondary: #6c757d;
-    --success: #06d6a0;
-    --warning: #ffd166;
-    --danger: #ff6b6b;
     --border: #dee2e6;
     --shadow: rgba(0, 0, 0, 0.1);
 }
@@ -182,6 +255,7 @@ body {
     padding: 0 20px;
 }
 
+/* Header */
 .header {
     text-align: center;
     padding: 30px 0;
@@ -225,6 +299,7 @@ body {
     margin-top: 10px;
 }
 
+/* Progress Bar */
 .progress-container {
     background: var(--surface-dark);
     height: 30px;
@@ -236,6 +311,7 @@ body {
 
 .progress-bar {
     height: 100%;
+    width: {porcentaje_completado}%;
     background: linear-gradient(90deg, var(--accent), var(--accent-light));
     border-radius: 15px;
     transition: width 0.5s ease;
@@ -255,6 +331,7 @@ body {
     margin-bottom: 10px;
 }
 
+/* Kanban Columns */
 .kanban-container {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -298,6 +375,7 @@ body {
     font-style: italic;
 }
 
+/* Cards */
 .card {
     background: white;
     border-radius: 8px;
@@ -368,6 +446,7 @@ body {
     margin-bottom: 8px;
 }
 
+/* Badges */
 .badge {
     display: inline-flex;
     align-items: center;
@@ -445,6 +524,7 @@ body {
     margin-right: 5px;
 }
 
+/* Footer */
 .footer {
     text-align: center;
     padding: 20px;
@@ -463,6 +543,7 @@ body {
     text-decoration: underline;
 }
 
+/* Responsive */
 @media (max-width: 768px) {
     .header h1 {
         font-size: 1.8rem;
@@ -512,128 +593,122 @@ body {
 }
 """
 
-# HTML principal
-html_parts = []
+# =============================================================================
+# Generar HTML
+# =============================================================================
 
-html_parts.append('<!DOCTYPE html>')
-html_parts.append('<html lang="es">')
-html_parts.append('<head>')
-html_parts.append('    <meta charset="UTF-8">')
-html_parts.append('    <meta name="viewport" content="width=device-width, initial-scale=1.0">')
-html_parts.append(f'    <title>Plan Academico UVM - {meta["carrera"]} | {meta["periodo"]}</title>')
-html_parts.append('    <link rel="preconnect" href="https://fonts.googleapis.com">')
-html_parts.append('    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>')
-html_parts.append('    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">')
-html_parts.append('    <style>')
+def generate_column_html(title, icono, obligaciones_lista):
+    """Genera el HTML de una columna Kanban."""
+    lines = []
+    count = len(obligaciones_lista)
+    
+    lines.append(f'<div class="kanban-column">')
+    lines.append(f'  <h2>')
+    lines.append(f'    <span>{icono}</span>')
+    lines.append(f'    <span>{title}</span>')
+    lines.append(f'    <span class="count">({count})</span>')
+    lines.append(f'  </h2>')
+    
+    if not obligaciones_lista:
+        lines.append(f'  <div class="empty-state"><em>No hay actividades {title.lower()}</em></div>')
+    else:
+        for ob in obligaciones_lista:
+            lines.append(generate_card_html(ob))
+    
+    lines.append(f'</div>')
+    return '\n'.join(lines)
 
-# Aadir CSS
-for line in css.strip().split('\n'):
-    html_parts.append(f'        {line}')
 
-html_parts.append('    </style>')
-html_parts.append('</head>')
-html_parts.append('<body>')
-html_parts.append('    <div class="container">')
+# Construir HTML completo
+html_lines = []
+
+# Doctype y head
+html_lines.append('<!DOCTYPE html>')
+html_lines.append('<html lang="es">')
+html_lines.append('<head>')
+html_lines.append('  <meta charset="UTF-8">')
+html_lines.append('  <meta name="viewport" content="width=device-width, initial-scale=1.0">')
+html_lines.append(f'  <title>Plan Academico UVM - {meta["carrera"]} | {meta["periodo"]}</title>')
+html_lines.append('  <link rel="preconnect" href="https://fonts.googleapis.com">')
+html_lines.append('  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>')
+html_lines.append('  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">')
+html_lines.append('  <style>')
+
+# Insertar CSS con indentacion
+for css_line in CSS.strip().split('\n'):
+    if css_line.strip():
+        html_lines.append(f'    {css_line}')
+
+html_lines.append('  </style>')
+html_lines.append('</head>')
+html_lines.append('<body>')
+html_lines.append('  <div class="container">')
 
 # Header
-html_parts.append('        <!-- Header -->')
-html_parts.append('        <header class="header">')
-html_parts.append('            <h1>📚 Plan Académico UVM</h1>')
-html_parts.append('            <div class="subtitle">')
-html_parts.append(f'                <span><strong>{meta["carrera"]}</strong> | Periodo {meta["periodo"]}</span>')
-html_parts.append('                <span>•</span>')
-html_parts.append(f'                <span>Propietario: {meta["owner"]}</span>')
-html_parts.append('            </div>')
-html_parts.append('            <div class="subtitle">')
-html_parts.append(f'                <a href="{meta["github_pages_url"]}" target="_blank">')
-html_parts.append('                    🌐 Ver Tablero Publico')
-html_parts.append('                </a>')
-html_parts.append('            </div>')
-html_parts.append('            <div class="meta-info">')
-html_parts.append(f'                Ultima actualizacion: {formatted_now}')
-html_parts.append('            </div>')
-html_parts.append('        </header>')
+html_lines.append('    <!-- Header -->')
+html_lines.append('    <header class="header">')
+html_lines.append('      <h1>📚 Plan Academico UVM</h1>')
+html_lines.append('      <div class="subtitle">')
+html_lines.append(f'        <span><strong>{meta["carrera"]}</strong> | Periodo {meta["periodo"]}</span>')
+html_lines.append('        <span>•</span>')
+html_lines.append(f'        <span>Propietario: {meta["owner"]}</span>')
+html_lines.append('      </div>')
+html_lines.append('      <div class="subtitle">')
+html_lines.append(f'        <a href="{meta["github_pages_url"]}" target="_blank">')
+html_lines.append('          🌐 Ver Tablero Publico')
+html_lines.append('        </a>')
+html_lines.append('      </div>')
+html_lines.append('      <div class="meta-info">')
+html_lines.append(f'        Ultima actualizacion: {formatted_now}')
+html_lines.append('      </div>')
+html_lines.append('    </header>')
 
 # Progress Bar
-html_parts.append('        <!-- Progress Bar -->')
-html_parts.append('        <div class="progress-text">')
-html_parts.append(f'            Progreso general: {obligaciones_entregadas} de {total_obligaciones} actividades completadas')
-html_parts.append('        </div>')
-html_parts.append('        <div class="progress-container">')
-html_parts.append(f'            <div class="progress-bar" style="width: {porcentaje_completado}%">{porcentaje_completado:.1f}%</div>')
-html_parts.append('        </div>')
+html_lines.append('    <!-- Progress Bar -->')
+html_lines.append('    <div class="progress-text">')
+html_lines.append(f'      Progreso general: {obligaciones_entregadas} de {total_obligaciones} actividades completadas')
+html_lines.append('    </div>')
+html_lines.append('    <div class="progress-container">')
+html_lines.append(f'      <div class="progress-bar">{porcentaje_completado:.1f}%</div>')
+html_lines.append('    </div>')
 
 # Kanban Columns
-html_parts.append('        <!-- Kanban Columns -->')
-html_parts.append('        <div class="kanban-container">')
+html_lines.append('    <!-- Kanban Columns -->')
+html_lines.append('    <div class="kanban-container">')
 
-# Columna Pendiente
-html_parts.append('            <!-- Pendiente -->')
-html_parts.append(f'            <div class="kanban-column">')
-html_parts.append(f'                <h2>')
-html_parts.append(f'                    <span>{ESTADO_EMOJI.get("pendiente", "⏳")}</span>')
-html_parts.append(f'                    <span>Pendiente</span>')
-html_parts.append(f'                    <span class="count">({len(obligaciones_por_estado["pendiente"])})</span>')
-html_parts.append(f'                </h2>')
-if not obligaciones_por_estado["pendiente"]:
-    html_parts.append(f'                <div class="empty-state"><em>No hay actividades pendientes</em></div>')
-else:
-    for ob in obligaciones_por_estado["pendiente"]:
-        html_parts.append(generate_card(ob))
-html_parts.append(f'            </div>')
+# Pendiente
+html_lines.append(generate_column_html("Pendiente", ESTADO_EMOJI.get("pendiente"), obligaciones_por_estado["pendiente"]))
 
-# Columna En Progreso
-html_parts.append('            <!-- En Progreso -->')
-html_parts.append(f'            <div class="kanban-column">')
-html_parts.append(f'                <h2>')
-html_parts.append(f'                    <span>{ESTADO_EMOJI.get("en_progreso", "🔄")}</span>')
-html_parts.append(f'                    <span>En Progreso</span>')
-html_parts.append(f'                    <span class="count">({len(obligaciones_por_estado["en_progreso"])})</span>')
-html_parts.append(f'                </h2>')
-if not obligaciones_por_estado["en_progreso"]:
-    html_parts.append(f'                <div class="empty-state"><em>No hay actividades en progreso</em></div>')
-else:
-    for ob in obligaciones_por_estado["en_progreso"]:
-        html_parts.append(generate_card(ob))
-html_parts.append(f'            </div>')
+# En Progreso
+html_lines.append(generate_column_html("En Progreso", ESTADO_EMOJI.get("en_progreso"), obligaciones_por_estado["en_progreso"]))
 
-# Columna Entregado
-html_parts.append('            <!-- Entregado -->')
-html_parts.append(f'            <div class="kanban-column">')
-html_parts.append(f'                <h2>')
-html_parts.append(f'                    <span>{ESTADO_EMOJI.get("entregado", "✅")}</span>')
-html_parts.append(f'                    <span>Entregado</span>')
-html_parts.append(f'                    <span class="count">({len(obligaciones_por_estado["entregado"])})</span>')
-html_parts.append(f'                </h2>')
-if not obligaciones_por_estado["entregado"]:
-    html_parts.append(f'                <div class="empty-state"><em>No hay actividades entregadas</em></div>')
-else:
-    for ob in obligaciones_por_estado["entregado"]:
-        html_parts.append(generate_card(ob))
-html_parts.append(f'            </div>')
+# Entregado
+html_lines.append(generate_column_html("Entregado", ESTADO_EMOJI.get("entregado"), obligaciones_por_estado["entregado"]))
 
-html_parts.append('        </div>')
+html_lines.append('    </div>')
 
 # Footer
-html_parts.append('        <!-- Footer -->')
-html_parts.append('        <footer class="footer">')
-html_parts.append('            <p>Generado automaticamente por <strong>Academic Tracker</strong></p>')
-html_parts.append(f'            <p>Fecha de generacion: {formatted_now} (Timezone: {meta["timezone"]})</p>')
-html_parts.append('        </footer>')
-html_parts.append('    </div>')
-html_parts.append('</body>')
-html_parts.append('</html>')
+html_lines.append('    <!-- Footer -->')
+html_lines.append('    <footer class="footer">')
+html_lines.append('      <p>Generado automaticamente por <strong>Academic Tracker</strong></p>')
+html_lines.append(f'      <p>Fecha de generacion: {formatted_now} (Timezone: {meta["timezone"]})</p>')
+html_lines.append('    </footer>')
+html_lines.append('  </div>')
+html_lines.append('</body>')
+html_lines.append('</html>')
 
-# Unir todo
-html_content = '\n'.join(html_parts)
+# =============================================================================
+# Escribir archivo
+# =============================================================================
 
-# Escribir el archivo
+html_content = '\n'.join(html_lines)
+
 with open("docs/index.html", "w", encoding="utf-8") as f:
     f.write(html_content)
 
-print(f"Dashboard generado en docs/index.html")
-print(f"Total actividades: {total_obligaciones}")
-print(f"Pendientes: {len(obligaciones_por_estado['pendiente'])}")
-print(f"En progreso: {len(obligaciones_por_estado['en_progreso'])}")
-print(f"Entregadas: {len(obligaciones_por_estado['entregado'])}")
-print(f"Progreso: {porcentaje_completado:.1f}%")
+print(f"✅ Dashboard generado en docs/index.html")
+print(f"   Total actividades: {total_obligaciones}")
+print(f"   Pendientes: {len(obligaciones_por_estado['pendiente'])}")
+print(f"   En progreso: {len(obligaciones_por_estado['en_progreso'])}")
+print(f"   Entregadas: {len(obligaciones_por_estado['entregado'])}")
+print(f"   Progreso: {porcentaje_completado:.1f}%")
