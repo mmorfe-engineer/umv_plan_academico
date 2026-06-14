@@ -11,7 +11,7 @@ import os
 import sys
 import requests
 import smtplib
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -90,6 +90,48 @@ def get_fecha_limite(ob):
     return None
 
 
+def get_fecha_inicio(ob):
+    """Obtiene la fecha de inicio como objeto date."""
+    if "fecha_inicio" in ob:
+        return datetime.strptime(ob["fecha_inicio"], "%Y-%m-%d").date()
+    if "fecha" in ob:
+        return datetime.strptime(ob["fecha"], "%Y-%m-%d").date()
+    return None
+
+
+def get_semana_actual():
+    """Obtiene el lunes y domingo de la semana actual."""
+    hoy = date.today()
+    # Lunes de esta semana
+    lunes = hoy - timedelta(days=hoy.weekday())
+    # Domingo de esta semana
+    domingo = lunes + timedelta(days=6)
+    return lunes, domingo
+
+
+def actividad_en_semana(ob):
+    """Verifica si la actividad tiene alguna fecha en la semana actual."""
+    lunes, domingo = get_semana_actual()
+    
+    # Verificar fecha única
+    fecha_limite = get_fecha_limite(ob)
+    if fecha_limite and lunes <= fecha_limite <= domingo:
+        return True
+    
+    # Verificar rango de fechas (fecha_inicio a fecha_fin)
+    fecha_inicio = get_fecha_inicio(ob)
+    if fecha_inicio:
+        if "fecha_fin" in ob:
+            fecha_fin = datetime.strptime(ob["fecha_fin"], "%Y-%m-%d").date()
+            # Verificar si el rango se superpone con la semana
+            if fecha_fin >= lunes and fecha_inicio <= domingo:
+                return True
+        elif lunes <= fecha_inicio <= domingo:
+            return True
+    
+    return False
+
+
 def load_data():
     """Carga los datos de obligaciones desde el JSON."""
     try:
@@ -117,12 +159,32 @@ def send_slack(ob, dias, canal, pages_url, modo="normal"):
     nota = ob.get("nota", "")
 
     if modo == "lunes":
-        texto = (
-            f"{emoji_u} *REVISIÓN SEMANAL — LUNES*\n"
-            f"{emoji_t} *{materia}* · {titulo}\n"
-            f"📋 {nota}\n"
-            f"🔗 Tablero: {pages_url}"
-        )
+        # Si hay dias restantes, mostrar urgencia
+        if dias is not None:
+            if dias == 0:
+                urgencia_txt = "🚨 *¡VENCE HOY!*"
+            elif dias == 1:
+                urgencia_txt = "🔴 *¡Vence MAÑANA!*"
+            elif dias <= 3:
+                urgencia_txt = f"⚠️ *Vence en {dias} días*"
+            elif dias <= 7:
+                urgencia_txt = f"📅 *Vence en {dias} días*"
+            else:
+                urgencia_txt = f"📅 *Vence en {dias} días*"
+            texto = (
+                f"{urgencia_txt}\n"
+                f"{emoji_t} *{materia}* · {titulo}\n"
+                f"📆 Fecha: `{get_fecha_display(ob)}`\n"
+                f"📋 {nota}\n"
+                f"🔗 Tablero: {pages_url}"
+            )
+        else:
+            texto = (
+                f"🔁 *REVISIÓN SEMANAL — LUNES*\n"
+                f"{emoji_t} *{materia}* · {titulo}\n"
+                f"📋 {nota}\n"
+                f"🔗 Tablero: {pages_url}"
+            )
     else:
         if dias == 0:
             urgencia_txt = "🚨 *¡VENCE HOY!*"
@@ -158,14 +220,34 @@ def send_email(ob, dias, email_list, pages_url, modo="normal"):
     fecha_d = get_fecha_display(ob)
 
     if modo == "lunes":
-        subject = f"🔁 Revisión semanal — {materia}"
-        body = (
-            f"Revisión programada de lunes.\n\n"
-            f"Materia: {materia}\n"
-            f"Actividad: {titulo}\n"
-            f"Nota: {ob.get('nota', '')}\n\n"
-            f"Ver tablero completo: {pages_url}"
-        )
+        if dias is not None:
+            if dias == 0:
+                subject = f"🚨 VENCE HOY — {materia}: {titulo}"
+            elif dias == 1:
+                subject = f"🔴 Vence MAÑANA — {materia}: {titulo}"
+            elif dias <= 3:
+                subject = f"⚠️ Vence en {dias} días — {materia}: {titulo}"
+            else:
+                subject = f"📅 Revisión semanal — {materia}: {titulo}"
+            body = (
+                f"Recordatorio académico - Revisión de lunes.\n\n"
+                f"Materia:    {materia}\n"
+                f"Actividad:  {titulo}\n"
+                f"Tipo:       {ob.get('tipo', '')}\n"
+                f"Fecha:      {get_fecha_display(ob)}\n"
+                f"Días rest.: {dias} días\n"
+                f"Nota:       {ob.get('nota', '')}\n\n"
+                f"Ver tablero completo: {pages_url}"
+            )
+        else:
+            subject = f"🔁 Revisión semanal — {materia}"
+            body = (
+                f"Revisión programada de lunes.\n\n"
+                f"Materia: {materia}\n"
+                f"Actividad: {titulo}\n"
+                f"Nota: {ob.get('nota', '')}\n\n"
+                f"Ver tablero completo: {pages_url}"
+            )
     else:
         if dias == 0:
             subject = f"🚨 VENCE HOY — {materia}: {titulo}"
@@ -226,10 +308,21 @@ def run(modo="normal"):
         print("⚠️  No hay canal de Slack configurado")
 
     for ob in data["obligaciones"]:
-        # Revision semanal lunes
-        if modo == "lunes" and ob.get("revision_semanal_lunes"):
-            send_slack(ob, None, canal, pages_url, modo="lunes")
-            send_email(ob, None, emails, pages_url, modo="lunes")
+        # Revision semanal lunes - Enviar TODAS las actividades de esta semana
+        if modo == "lunes":
+            if actividad_en_semana(ob):
+                # Calcular dias restantes si tiene fecha limite
+                dias_restantes = None
+                fecha_limite = get_fecha_limite(ob)
+                if fecha_limite:
+                    dias_restantes = (fecha_limite - hoy).days
+                
+                send_slack(ob, dias_restantes, canal, pages_url, modo="lunes")
+                send_email(ob, dias_restantes, emails, pages_url, modo="lunes")
+            # También enviar actividades con revision_semanal_lunes para retrocompatibilidad
+            elif ob.get("revision_semanal_lunes"):
+                send_slack(ob, None, canal, pages_url, modo="lunes")
+                send_email(ob, None, emails, pages_url, modo="lunes")
             continue
 
         # Alerta por dias restantes

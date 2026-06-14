@@ -34,7 +34,7 @@
       "estado": "pendiente",
       "alerta": false,
       "recordatorios_dias": [],
-      "revision_semanal_lunes": false
+      "revision_semanal_lunes": true
     },
     {
       "materia": "Principio de Electricidad",
@@ -46,7 +46,7 @@
       "estado": "pendiente",
       "alerta": false,
       "recordatorios_dias": [],
-      "revision_semanal_lunes": false
+      "revision_semanal_lunes": true
     },
     {
       "materia": "Principio de Electricidad",
@@ -58,7 +58,7 @@
       "estado": "pendiente",
       "alerta": false,
       "recordatorios_dias": [],
-      "revision_semanal_lunes": false
+      "revision_semanal_lunes": true
     },
     {
       "materia": "Física I/Física",
@@ -70,7 +70,7 @@
       "estado": "pendiente",
       "alerta": false,
       "recordatorios_dias": [],
-      "revision_semanal_lunes": false
+      "revision_semanal_lunes": true
     },
     {
       "materia": "Física I/Física",
@@ -82,7 +82,7 @@
       "estado": "pendiente",
       "alerta": false,
       "recordatorios_dias": [],
-      "revision_semanal_lunes": false
+      "revision_semanal_lunes": true
     },
     {
       "materia": "Física I/Física",
@@ -94,7 +94,7 @@
       "estado": "pendiente",
       "alerta": false,
       "recordatorios_dias": [],
-      "revision_semanal_lunes": false
+      "revision_semanal_lunes": true
     },
     {
       "materia": "Álgebra de Estructura",
@@ -121,7 +121,7 @@
       "estado": "en_progreso",
       "alerta": false,
       "recordatorios_dias": [],
-      "revision_semanal_lunes": false
+      "revision_semanal_lunes": true
     },
     {
       "materia": "Backend (Ingeniería de la Programación)",
@@ -134,7 +134,7 @@
       "estado": "pendiente",
       "alerta": false,
       "recordatorios_dias": [],
-      "revision_semanal_lunes": false
+      "revision_semanal_lunes": true
     },
     {
       "materia": "Backend (Ingeniería de la Programación)",
@@ -147,7 +147,7 @@
       "estado": "pendiente",
       "alerta": false,
       "recordatorios_dias": [],
-      "revision_semanal_lunes": false
+      "revision_semanal_lunes": true
     },
     {
       "materia": "Backend (Ingeniería de la Programación)",
@@ -160,7 +160,7 @@
       "estado": "pendiente",
       "alerta": false,
       "recordatorios_dias": [],
-      "revision_semanal_lunes": false
+      "revision_semanal_lunes": true
     },
     {
       "materia": "Estadística Descriptiva",
@@ -173,7 +173,7 @@
       "estado": "en_progreso",
       "alerta": false,
       "recordatorios_dias": [],
-      "revision_semanal_lunes": false
+      "revision_semanal_lunes": true
     },
     {
       "materia": "Estadística Descriptiva",
@@ -186,7 +186,7 @@
       "estado": "en_progreso",
       "alerta": false,
       "recordatorios_dias": [],
-      "revision_semanal_lunes": false
+      "revision_semanal_lunes": true
     },
     {
       "materia": "Estadística Descriptiva",
@@ -199,7 +199,7 @@
       "estado": "en_progreso",
       "alerta": false,
       "recordatorios_dias": [],
-      "revision_semanal_lunes": false
+      "revision_semanal_lunes": true
     }
   ]
 }
