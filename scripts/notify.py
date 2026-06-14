@@ -99,23 +99,23 @@ def get_fecha_inicio(ob):
     return None
 
 
-def get_semana_actual():
-    """Obtiene el lunes y domingo de la semana actual."""
+def get_rango_semananal():
+    """Obtiene el lunes de esta semana y el domingo de la próxima semana (2 semanas de cobertura)."""
     hoy = date.today()
     # Lunes de esta semana
-    lunes = hoy - timedelta(days=hoy.weekday())
-    # Domingo de esta semana
-    domingo = lunes + timedelta(days=6)
-    return lunes, domingo
+    lunes_esta_semana = hoy - timedelta(days=hoy.weekday())
+    # Domingo de la próxima semana
+    domingo_proxima_semana = lunes_esta_semana + timedelta(days=13)
+    return lunes_esta_semana, domingo_proxima_semana
 
 
-def actividad_en_semana(ob):
-    """Verifica si la actividad tiene alguna fecha en la semana actual."""
-    lunes, domingo = get_semana_actual()
+def actividad_en_periodo_semananal(ob):
+    """Verifica si la actividad tiene alguna fecha en las próximas 2 semanas (esta semana + siguiente)."""
+    lunes_esta_semana, domingo_proxima_semana = get_rango_semananal()
     
     # Verificar fecha única
     fecha_limite = get_fecha_limite(ob)
-    if fecha_limite and lunes <= fecha_limite <= domingo:
+    if fecha_limite and lunes_esta_semana <= fecha_limite <= domingo_proxima_semana:
         return True
     
     # Verificar rango de fechas (fecha_inicio a fecha_fin)
@@ -123,10 +123,10 @@ def actividad_en_semana(ob):
     if fecha_inicio:
         if "fecha_fin" in ob:
             fecha_fin = datetime.strptime(ob["fecha_fin"], "%Y-%m-%d").date()
-            # Verificar si el rango se superpone con la semana
-            if fecha_fin >= lunes and fecha_inicio <= domingo:
+            # Verificar si el rango se superpone con el período de 2 semanas
+            if fecha_fin >= lunes_esta_semana and fecha_inicio <= domingo_proxima_semana:
                 return True
-        elif lunes <= fecha_inicio <= domingo:
+        elif lunes_esta_semana <= fecha_inicio <= domingo_proxima_semana:
             return True
     
     return False
@@ -308,9 +308,9 @@ def run(modo="normal"):
         print("⚠️  No hay canal de Slack configurado")
 
     for ob in data["obligaciones"]:
-        # Revision semanal lunes - Enviar TODAS las actividades de esta semana
+        # Revision semanal lunes - Enviar TODAS las actividades de las próximas 2 semanas
         if modo == "lunes":
-            if actividad_en_semana(ob):
+            if actividad_en_periodo_semananal(ob):
                 # Calcular dias restantes si tiene fecha limite
                 dias_restantes = None
                 fecha_limite = get_fecha_limite(ob)
