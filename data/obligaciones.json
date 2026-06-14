@@ -5,7 +5,7 @@
     "timezone": "America/Caracas",
     "owner": "Martin Morfe Flores",
     "canal_slack": "#plan-academico",
-    "email_to": ["morfefloresm@uvm.edu.ve", "morfecarballom@uvm.edu.ve"],
+    "email_to": ["morfefloresm@uvm.edu.ve"],
     "github_pages_url": "https://mmorfe-engineer.github.io/umv_plan_academico",
     "recordatorios_default": [7, 3, 1, 0]
   },
